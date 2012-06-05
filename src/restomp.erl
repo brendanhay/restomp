@@ -12,7 +12,6 @@
 
 -include("include/restomp.hrl").
 
-
 %% API
 -export([]).
 
