@@ -23,26 +23,26 @@
 
 -record(p, {bytes = <<>> :: binary()}).
 
--opaque stomp_parser() :: #p{}.
+-opaque parser() :: #p{}.
 
--type stomp_message()  :: {msg, _}.
--type stomp_messages() :: [stomp_message()].
--type stomp_result()   :: {ok | {error, atom()}, stomp_messages(), stomp_parser()}.
+-type message()  :: {msg, _}.
+-type messages() :: [message()].
+-type result()   :: {ok | {error, atom()}, messages(), parser()}.
 
--exported_types([stomp_message/0,
-                 stomp_messages/0,
-                 stomp_result/0]).
+-exported_types([message/0,
+                 messages/0,
+                 result/0]).
 
 %%
 %% API
 %%
 
--spec new() -> stomp_parser().
+-spec new() -> parser().
 
--spec push(stomp_parser(), binary()) -> stomp_result().
+-spec push(binary(), parser()) -> result().
 
 %%
 %% Private
 %%
 
--spec parse(binary(), stomp_messages()) -> stomp_result().
+-spec parse(binary(), messages()) -> result().
