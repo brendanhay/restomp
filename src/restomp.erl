@@ -29,7 +29,9 @@
 -type stomp_messages() :: [stomp_message()].
 -type stomp_result()   :: {ok | {error, atom()}, stomp_messages(), stomp_parser()}.
 
--exported_types([stomp_result/0]).
+-exported_types([stomp_message/0,
+                 stomp_messages/0,
+                 stomp_result/0]).
 
 %%
 %% API
