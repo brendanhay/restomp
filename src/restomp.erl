@@ -13,8 +13,34 @@
 -include("include/restomp.hrl").
 
 %% API
--export([]).
+-export([new/0,
+         push/2]).
+
+
+%%
+%% Types
+%%
+
+-record(p, {bytes = <<>> :: binary()}).
+
+-opaque stomp_parser() :: #p{}.
+
+-type stomp_message()  :: {msg, _}.
+-type stomp_messages() :: [stomp_message()].
+-type stomp_result()   :: {ok | {error, atom()}, stomp_messages(), stomp_parser()}.
+
+-exported_types([stomp_result/0]).
 
 %%
 %% API
 %%
+
+-spec new() -> stomp_parser().
+
+-spec push(stomp_parser(), binary()) -> stomp_result().
+
+%%
+%% Private
+%%
+
+-spec parse(binary(), stomp_messages()) -> stomp_result().

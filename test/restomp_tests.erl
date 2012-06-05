@@ -16,7 +16,7 @@
 -compile(export_all).
 
 %%
-%% Unit
+%% Units
 %%
 
 %%
