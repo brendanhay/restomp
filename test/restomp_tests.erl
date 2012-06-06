@@ -65,13 +65,12 @@ without_content_type_binary_test() ->
     Header = <<"\n"
                 "SEND\n"
                 "destination:/topic/queue\n"
-                "content-length:"/utf8>>,
-    Msg = <<"\u0ca0\ufffd\x00\n\x01hello\x00"/utf8>>,
-    Size = list_to_binary(integer_to_list(size(Msg)) ++ "\n\n"),
-    Encoded = <<Header/binary, Size/binary, Msg/binary>>,
-    Decoded = {frame, "SEND", [{"destination", "/topic/queue"},
-                               {"content-length", integer_to_list(size(Msg))}],
-              [<<"hello">>]},
+                "content-length:18\n\n"/utf8>>,
+    Msg = <<"\u0ca0\ufffd\x00\n\x01hello"/utf8>>,
+    Encoded = <<Header/binary, Msg/binary, "\x00"/utf8>>,
+    Decoded = {frame, "SEND", [{"content-length", "18"},
+                               {"destination", "/topic/queue"}],
+               [Msg]},
     ?assertEqual({ok, Decoded, <<>>}, restomp:decode(Encoded)).
 
 newline_after_nul_and_leading_nul_test() ->
