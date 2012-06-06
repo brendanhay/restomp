@@ -10,9 +10,6 @@
 %% This code has been adapted from the RabbitMQ STOMP plugin:
 %% http://hg.rabbitmq.com/rabbitmq-stomp
 %%
-%% The Initial Developer of the Original Code is VMware, Inc.
-%% Copyright (c) 2007-2012 VMware, Inc. All rights reserved.
-%%
 
 -module(restomp).
 
