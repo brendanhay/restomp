@@ -59,13 +59,13 @@ encode_message_test() ->
                {"destination", "/topic/queue"},
                {"content-type", "text/plain"}],
     Decoded = {frame, "MESSAGE", Headers, [<<"hello\n">>]},
-    {Encoded, restomp:encode(Decoded)}.
+    ?assertEqual(Encoded, restomp:encode(Decoded)).
 
 without_content_type_binary_test() ->
     Header = <<"\n"
                 "SEND\n"
                 "destination:/topic/queue\n"
-                "content-length:">>,
+                "content-length:"/utf8>>,
     Msg = <<"\u0ca0\ufffd\x00\n\x01hello\x00"/utf8>>,
     Size = list_to_binary(integer_to_list(size(Msg)) ++ "\n\n"),
     Encoded = <<Header/binary, Size/binary, Msg/binary>>,

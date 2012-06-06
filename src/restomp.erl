@@ -30,8 +30,7 @@
          integer_header/2,
          integer_header/3,
          binary_header/2,
-         binary_header/3,
-         serialize/1]).
+         binary_header/3]).
 
 %%
 %% Types
@@ -63,11 +62,16 @@ encode(#frame{command = Cmd, headers = Headers, body = Body}) ->
 -spec encode(command(), headers(), body()) -> binary().
 %% @doc
 encode(Cmd, Headers, Body) ->
-    Cmd1 = list_to_binary(Cmd),
-    Headers1 = lists:map(fun({K, V}) -> list_to_binary(K ++ ":" ++ V ++ "\n") end, Headers),
-    Headers2 = iolist_to_binary(lists:reverse(Headers1)),
-    Body1 = iolist_to_binary(Body),
-    <<Cmd1/binary, "\n", Headers2/binary, "\n", Body1/binary>>.
+    Len = iolist_size(Body),
+    Res = [Cmd, $\n,
+           lists:map(fun serialize_header/1,
+                     lists:reverse(lists:keydelete("content-length", 1, Headers))),
+           if
+               Len > 0 -> ["content-length:", integer_to_list(Len), $\n];
+               true    -> []
+           end,
+           $\n, Body, 0],
+    iolist_to_binary(Res).
 
 -spec decode(binary()) -> parser().
 %% @doc
@@ -214,17 +218,6 @@ more(Continuation) -> {more, {resume, Continuation}}.
 
 default_value({ok, Value}, _DefaultValue) -> Value;
 default_value(not_found, DefaultValue)    -> DefaultValue.
-
-serialize(#frame{command = Command, headers = Headers, body = BodyFragments}) ->
-    Len = iolist_size(BodyFragments),
-    [Command, $\n,
-     lists:map(fun serialize_header/1,
-               lists:keydelete("content-length", 1, Headers)),
-     if
-         Len > 0 -> ["content-length:", integer_to_list(Len), $\n];
-         true    -> []
-     end,
-     $\n, BodyFragments, 0].
 
 serialize_header({K, V}) when is_integer(V) ->
     [K, $:, integer_to_list(V), $\n];
