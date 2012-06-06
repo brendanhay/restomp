@@ -19,8 +19,10 @@
 -include("include/restomp.hrl").
 
 %% API
--export([new/0,
-         parse/2,
+-export([encode/1,
+         encode/3,
+         decode/1,
+         decode/2,
          header/2,
          header/3,
          boolean_header/2,
@@ -35,11 +37,16 @@
 %% Types
 %%
 
--record(f, {command, headers, body}).
+-record(frame, {command, headers, body}).
 
--opaque frame() :: #f{}.
+-opaque frame() :: #frame{}.
+
+-type command() :: string().
+-type headers() :: [proplists:property()].
+-type body()    :: [binary()].
 
 -type parser()  :: none | {resume, fun((binary()) -> ok)}.
+-type result()  :: {ok, frame(), binary()}.
 
 -exported_types([frame/0,
                  parser/0]).
@@ -48,17 +55,31 @@
 %% API
 %%
 
--spec new() -> parser().
+-spec encode(frame()) -> binary().
 %% @doc
-new() -> none.
+encode(#frame{command = Cmd, headers = Headers, body = Body}) ->
+    encode(Cmd, Headers, Body).
 
--spec parse(binary(), parser()) -> parser().
+-spec encode(command(), headers(), body()) -> binary().
 %% @doc
-parse(Bin, {resume, Fun}) -> Fun(Bin);
-parse(Bin, none)          -> parse_command(Bin, []).
+encode(Cmd, Headers, Body) ->
+    Cmd1 = list_to_binary(Cmd),
+    Headers1 = lists:map(fun({K, V}) -> list_to_binary(K ++ ":" ++ V ++ "\n") end, Headers),
+    Headers2 = iolist_to_binary(lists:reverse(Headers1)),
+    Body1 = iolist_to_binary(Body),
+    <<Cmd1/binary, "\n", Headers2/binary, "\n", Body1/binary>>.
+
+-spec decode(binary()) -> parser().
+%% @doc
+decode(Bin) -> decode(Bin, none).
+
+-spec decode(binary(), parser()) -> parser().
+%% @doc
+decode(Bin, {resume, Fun}) -> Fun(Bin);
+decode(Bin, none)          -> parse_command(Bin, []).
 
 %% @doc
-header(#f{headers = Headers}, Key) ->
+header(#frame{headers = Headers}, Key) ->
     case lists:keysearch(Key, 1, Headers) of
         {value, {_, Str}} -> {ok, Str};
         _                 -> not_found
@@ -68,7 +89,7 @@ header(#f{headers = Headers}, Key) ->
 header(F, K, D) -> default_value(header(F, K), D).
 
 %% @doc
-boolean_header(#f{headers = Headers}, Key) ->
+boolean_header(#frame{headers = Headers}, Key) ->
     case lists:keysearch(Key, 1, Headers) of
         {value, {_, "true"}}  -> {ok, true};
         {value, {_, "false"}} -> {ok, false};
@@ -86,7 +107,7 @@ internal_integer_header(Headers, Key) ->
     end.
 
 %% @doc
-integer_header(#f{headers = Headers}, Key) ->
+integer_header(#frame{headers = Headers}, Key) ->
     internal_integer_header(Headers, Key).
 
 %% @doc
@@ -118,12 +139,12 @@ parse_command(<<Ch:8, Rest/binary>>, Acc) ->
     parse_command(Rest, [Ch | Acc]).
 
 parse_headers(Rest, Command) -> % begin headers
-    parse_headers(Rest, #f{command = Command}, [], []).
+    parse_headers(Rest, #frame{command = Command}, [], []).
 
 parse_headers(<<>>, Frame, HeaderAcc, KeyAcc) ->
     more(fun(Rest) -> parse_headers(Rest, Frame, HeaderAcc, KeyAcc) end);
 parse_headers(<<$\n, Rest/binary>>, Frame, HeaderAcc, _KeyAcc) -> % end headers
-    parse_body(Rest, Frame#f{headers = HeaderAcc});
+    parse_body(Rest, Frame#frame{headers = HeaderAcc});
 parse_headers(<<$:, Rest/binary>>, Frame, HeaderAcc, KeyAcc) ->   % end key
     parse_header_value(Rest, Frame, HeaderAcc, lists:reverse(KeyAcc));
 parse_headers(<<Ch:8, Rest/binary>>, Frame, HeaderAcc, KeyAcc) ->
@@ -135,8 +156,7 @@ parse_header_value(Rest, Frame, HeaderAcc, Key) -> % begin header value
 parse_header_value(<<>>, Frame, HeaderAcc, Key, ValAcc) ->
     more(fun(Rest) -> parse_header_value(Rest, Frame, HeaderAcc, Key, ValAcc)
          end);
-parse_header_value(<<$\n, Rest/binary>>, Frame, HeaderAcc, Key, ValAcc) ->
-                                                                  % end value
+parse_header_value(<<$\n, Rest/binary>>, Frame, HeaderAcc, Key, ValAcc) -> % end value
     parse_headers(Rest, Frame,
                   insert_header(HeaderAcc, Key, lists:reverse(ValAcc)),
                   []);
@@ -185,7 +205,7 @@ parse_body2(Content, Frame, Chunks, {more, Left}) ->
 parse_body2(Content, Frame, Chunks, {done, Pos}) ->
     <<Chunk:Pos/binary, 0, Rest/binary>> = Content,
     Body = lists:reverse(finalize_chunk(Chunk, Chunks)),
-    {ok, Frame#f{body = Body}, Rest}.
+    {ok, Frame#frame{body = Body}, Rest}.
 
 finalize_chunk(<<>>,  Chunks) -> Chunks;
 finalize_chunk(Chunk, Chunks) -> [Chunk | Chunks].
@@ -195,7 +215,7 @@ more(Continuation) -> {more, {resume, Continuation}}.
 default_value({ok, Value}, _DefaultValue) -> Value;
 default_value(not_found, DefaultValue)    -> DefaultValue.
 
-serialize(#f{command = Command, headers = Headers, body = BodyFragments}) ->
+serialize(#frame{command = Command, headers = Headers, body = BodyFragments}) ->
     Len = iolist_size(BodyFragments),
     [Command, $\n,
      lists:map(fun serialize_header/1,
