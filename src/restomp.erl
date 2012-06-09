@@ -33,19 +33,15 @@
 %% Types
 %%
 
--record(frame, {command, headers, body}).
-
--opaque frame() :: #frame{}.
-
 -type command() :: string().
 -type headers() :: [proplists:property()].
 -type body()    :: [binary()].
 
 -type parser()  :: none | {resume, fun((binary()) -> ok)}.
--type result()  :: {ok, frame(), binary()}.
+-type result()  :: {ok, {command(), headers(), body()}, binary()}.
 
--exported_types([frame/0,
-                 parser/0]).
+-exported_types([parser/0,
+                 result/0]).
 
 %%
 %% API
@@ -53,7 +49,7 @@
 
 -spec encode(frame()) -> binary().
 %% @doc
-encode(#frame{command = Cmd, headers = Headers, body = Body}) ->
+encode(#stomp_frame{command = Cmd, headers = Headers, body = Body}) ->
     encode(Cmd, Headers, Body).
 
 -spec encode(command(), headers(), body()) -> binary().
@@ -80,7 +76,7 @@ decode(Bin, {resume, Fun}) -> Fun(Bin);
 decode(Bin, none)          -> parse_command(Bin, []).
 
 %% @doc
-header(#frame{headers = Headers}, Key) ->
+header(#stomp_frame{headers = Headers}, Key) ->
     case lists:keysearch(Key, 1, Headers) of
         {value, {_, Str}} -> {ok, Str};
         _                 -> not_found
@@ -90,7 +86,7 @@ header(#frame{headers = Headers}, Key) ->
 header(F, K, D) -> default_value(header(F, K), D).
 
 %% @doc
-boolean_header(#frame{headers = Headers}, Key) ->
+boolean_header(#stomp_frame{headers = Headers}, Key) ->
     case lists:keysearch(Key, 1, Headers) of
         {value, {_, "true"}}  -> {ok, true};
         {value, {_, "false"}} -> {ok, false};
@@ -108,7 +104,7 @@ internal_integer_header(Headers, Key) ->
     end.
 
 %% @doc
-integer_header(#frame{headers = Headers}, Key) ->
+integer_header(#stomp_frame{headers = Headers}, Key) ->
     internal_integer_header(Headers, Key).
 
 %% @doc
@@ -140,12 +136,12 @@ parse_command(<<Ch:8, Rest/binary>>, Acc) ->
     parse_command(Rest, [Ch | Acc]).
 
 parse_headers(Rest, Command) -> % begin headers
-    parse_headers(Rest, #frame{command = Command}, [], []).
+    parse_headers(Rest, #stomp_frame{command = Command}, [], []).
 
 parse_headers(<<>>, Frame, HeaderAcc, KeyAcc) ->
     more(fun(Rest) -> parse_headers(Rest, Frame, HeaderAcc, KeyAcc) end);
 parse_headers(<<$\n, Rest/binary>>, Frame, HeaderAcc, _KeyAcc) -> % end headers
-    parse_body(Rest, Frame#frame{headers = HeaderAcc});
+    parse_body(Rest, Frame#stomp_frame{headers = HeaderAcc});
 parse_headers(<<$:, Rest/binary>>, Frame, HeaderAcc, KeyAcc) ->   % end key
     parse_header_value(Rest, Frame, HeaderAcc, lists:reverse(KeyAcc));
 parse_headers(<<Ch:8, Rest/binary>>, Frame, HeaderAcc, KeyAcc) ->
@@ -206,7 +202,7 @@ parse_body2(Content, Frame, Chunks, {more, Left}) ->
 parse_body2(Content, Frame, Chunks, {done, Pos}) ->
     <<Chunk:Pos/binary, 0, Rest/binary>> = Content,
     Body = lists:reverse(finalize_chunk(Chunk, Chunks)),
-    {ok, Frame#frame{body = Body}, Rest}.
+    {ok, Frame#stomp_frame{body = Body}, Rest}.
 
 finalize_chunk(<<>>,  Chunks) -> Chunks;
 finalize_chunk(Chunk, Chunks) -> [Chunk | Chunks].

@@ -8,3 +8,5 @@
 %% @doc
 %%
 
+-record(stomp_frame, {command, headers, body}).
+
