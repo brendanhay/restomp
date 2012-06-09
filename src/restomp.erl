@@ -16,7 +16,8 @@
 -include("restomp.hrl").
 
 %% API
--export([encode/1,
+-export([new/0,
+         encode/1,
          encode/3,
          decode/1,
          decode/2,
@@ -35,19 +36,20 @@
 
 -opaque stomp_frame() :: #stomp_frame{}.
 
--type command()       :: string().
--type headers()       :: [proplists:property()].
--type body()          :: [binary()].
--type parser()        :: none | {resume, fun((binary()) -> ok)}.
--type result()        :: {ok, stomp_frame(), binary()}.
+-type command() :: string().
+-type headers() :: [proplists:property()].
+-type body()    :: [binary()].
+-type parser()  :: none | {resume, fun((binary()) -> ok)}.
 
 -exported_types([stomp_frame/0,
-                 parser/0,
-                 result/0]).
+                 parser/0]).
 
 %%
 %% API
 %%
+
+-spec new() -> parser().
+new() -> none.
 
 -spec encode(stomp_frame()) -> binary().
 %% @doc
