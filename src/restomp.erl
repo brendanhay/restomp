@@ -13,7 +13,7 @@
 
 -module(restomp).
 
--include("include/restomp.hrl").
+-include("restomp.hrl").
 
 %% API
 -export([encode/1,
@@ -33,21 +33,23 @@
 %% Types
 %%
 
--type command() :: string().
--type headers() :: [proplists:property()].
--type body()    :: [binary()].
+-opaque stomp_frame() :: #stomp_frame{}.
 
--type parser()  :: none | {resume, fun((binary()) -> ok)}.
--type result()  :: {ok, {command(), headers(), body()}, binary()}.
+-type command()       :: string().
+-type headers()       :: [proplists:property()].
+-type body()          :: [binary()].
+-type parser()        :: none | {resume, fun((binary()) -> ok)}.
+-type result()        :: {ok, stomp_frame(), binary()}.
 
--exported_types([parser/0,
+-exported_types([stomp_frame/0,
+                 parser/0,
                  result/0]).
 
 %%
 %% API
 %%
 
--spec encode(frame()) -> binary().
+-spec encode(stomp_frame()) -> binary().
 %% @doc
 encode(#stomp_frame{command = Cmd, headers = Headers, body = Body}) ->
     encode(Cmd, Headers, Body).
